@@ -23,6 +23,12 @@
 #bs-mp-support kbd{display:inline-block;padding:1px 4px;margin-right:2px;border:1px solid #7eabbf88;border-radius:3px;font:800 11px system-ui;color:#d3edfd}
 #bs-mp-support small{display:block;margin-top:3px;color:#b5ee79;font-size:9px;letter-spacing:.06em}#bs-mp-support button:disabled small{color:#9ab3c0}
 #bs-mp-support-notice{margin-top:8px;color:#ffdc90;font-size:10px;line-height:1.4}
+.bs-mp-you-color{color:#ff873b}.bs-mp-friend-color,.map-footer .map-friend{color:#b6f670}
+.map-footer .map-friend{font-size:8px;white-space:nowrap}
+#bs-mp-crew{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+#bs-mp-crew>div{padding:7px 9px;border:1px solid #3b596b;border-radius:6px;background:#122836}
+#bs-mp-crew span{font-size:10px;font-weight:800;letter-spacing:.06em}#bs-mp-crew b{display:block;margin-top:3px;color:#c1d5df;font-size:10px}
+#bs-mp-crew b[data-danger=true]{color:#ffbb92}
 body.bs-mp-active .mission-panel,body.bs-mp-active .support-panel,body.bs-mp-active .bust-panel,body.bs-mp-active .heat-status,body.bs-mp-active .backup-status,body.bs-mp-active .pursuit-status,body.bs-mp-active .takedown-count{display:none!important}
 body.bs-mp-active .equipment button[title="Reset the chase (R)"]{display:none!important}
 @media(max-width:650px){#bs-mp-dialog{padding:21px}#bs-mp-dialog h2{font-size:26px}#bs-mp-hud{top:64px;padding:9px 12px;width:min(360px,calc(100% - 28px))}#bs-mp-hud-title{font-size:16px}body.bs-mp-active .hud-left{top:300px}body.bs-mp-active .equipment{display:none}.bs-mp-code{font-size:27px}}
