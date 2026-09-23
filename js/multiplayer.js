@@ -5,18 +5,29 @@
  */
 (() => {
   'use strict';
-  const VERSION = 1, PREFIX = 'blueshift-pvp-v1-', KEYS = ['forward','brake','left','right','nitro','handbrake'];
+  const VERSION = 2, PREFIX = 'blueshift-pvp-v1-', KEYS = ['forward','brake','left','right','nitro','handbrake'];
   const STOP = {forward:false,brake:false,left:false,right:false,nitro:false,handbrake:true};
   const NUMBERS = ['x','z','vx','vz','yaw','yawRate','steering','nitro','boostCooldown','refillDelay','distance','forwardSpeed','slip','acceleration','impact','mass','power','topSpeed','grip','punctured'];
   const ROLES = ['racer','cop'];
+  const SUPPORT = {backup:{key:'V',name:'BACKUP',cooldown:20},roadblock:{key:'M',name:'ROADBLOCK',cooldown:30},special:{key:'N',name:'SPIKE BLOCK',cooldown:90}};
   const idleClock = () => ({phase:'lobby',countdown:3,elapsed:0,capture:0,escape:0,winner:'',reason:''});
   const opposite = role => role === 'cop' ? 'racer' : 'cop';
   const cleanInput = value => Object.fromEntries(KEYS.map(key => [key,value?.[key] === true]));
-  const validStates = states => states && ROLES.every(role => {
-    const state = states[role];
-    return state && NUMBERS.every(key => Number.isFinite(state[key]) && Math.abs(state[key]) < 1e7) &&
-      Math.abs(state.x) < 100000 && Math.abs(state.z) < 100000 && Math.abs(state.vx) < 1000 && Math.abs(state.vz) < 1000;
-  });
+  const validVehicle = state => state && NUMBERS.every(key => Number.isFinite(state[key]) && Math.abs(state[key]) < 1e7) &&
+    Math.abs(state.x) < 100000 && Math.abs(state.z) < 100000 && Math.abs(state.vx) < 1000 && Math.abs(state.vz) < 1000 &&
+    typeof state.boost === 'boolean' && typeof state.boostLock === 'boolean';
+  const validStates = states => states && ROLES.every(role => validVehicle(states[role]));
+  const bounded = (value,min,max) => Number.isFinite(value) && value >= min && value <= max;
+  const validSupport = support => support && support.cooldowns && Object.entries(SUPPORT).every(([kind,spec]) => bounded(support.cooldowns[kind],0,spec.cooldown)) &&
+    Array.isArray(support.units) && support.units.length <= 14 && new Set(support.units.map(unit=>unit?.id)).size === support.units.length &&
+    support.units.every(unit => unit && Number.isInteger(unit.id) && unit.id >= 0 && unit.id < 14 && unit.role === (unit.id < 2 ? 'pursuit' : 'roadblock') &&
+      bounded(unit.health,0,100) && typeof unit.wrecked === 'boolean' && bounded(unit.wreckAge,0,60) && validVehicle(unit.state)) &&
+    Array.isArray(support.blocks) && support.blocks.length <= 3 && new Set(support.blocks.map(block=>block?.slot)).size === support.blocks.length &&
+    support.blocks.every(block => block && Number.isInteger(block.slot) && block.slot >= 0 && block.slot < 3 && block.targetId === 501 &&
+      bounded(block.x,-1000,1000) && bounded(block.z,-1000,1000) && bounded(block.yaw,-Math.PI,Math.PI) && bounded(block.age,0,60) &&
+      bounded(block.dx,-1,1) && bounded(block.dz,-1,1) && Math.abs(Math.hypot(block.dx,block.dz)-1) < .01 &&
+      [-1,1].includes(block.gapSide) && typeof block.special === 'boolean' && Array.isArray(block.barriers) && block.barriers.length === 2 &&
+      block.barriers.every(barrier => barrier && bounded(barrier.x,-1000,1000) && bounded(barrier.z,-1000,1000) && bounded(barrier.w,.1,50) && bounded(barrier.d,.1,50)));
   const validClock = clock => clock && ['lobby','countdown','playing','paused','finished'].includes(clock.phase) &&
     ['elapsed','countdown','capture','escape'].every(key => Number.isFinite(clock[key]) && clock[key] >= 0 && clock[key] < 1000) &&
     ['',...ROLES].includes(clock.winner) && typeof clock.reason === 'string' && clock.reason.length < 180;
@@ -29,6 +40,7 @@
     code:'', map:'city', round:0, clock:idleClock(), adapter:null, peer:null, conn:null,
     remoteInput:{...STOP}, remoteInputAt:0, lastHeard:0, lastSend:0, inputAt:0, inputSignature:'', lastUI:0,
     generation:0, timer:0, heartbeat:0, ping:0, lastSnapshot:-1, serial:0, message:'', isError:false,
+    supportNotice:'', supportNoticeUntil:0, pendingSupport:null,
     attach(adapter) { this.adapter = adapter; this.buildUI(); return this; },
     setStatus(text, error = false) { this.message = text; this.isError = error; this.refresh(); },
     show() { if (!this.dialog.open) this.dialog.showModal(); this.refresh(); },
@@ -59,12 +71,14 @@
           <div class="bs-mp-row"><button id="bs-mp-resume" class="bs-mp-primary">RESUME CHASE</button><button id="bs-mp-leave">LEAVE ROOM</button></div>
         </div>
         <div id="bs-mp-status" role="status" aria-live="polite">Create a room, then share its code with your friend.</div>
-        <div class="bs-mp-rules"><b>COP</b> — Stay within 9 m of the racer while they are below 29 km/h for 3 seconds.<br><b>RACER</b> — Keep more than 140 m ahead for 8 seconds, or survive 3 minutes.<br>WASD / arrows to drive · Shift for nitro · Space to handbrake.</div>
+        <div class="bs-mp-rules"><b>COP</b> — Stay within 9 m of the racer while they are below 29 km/h for 3 seconds.<br><b>RACER</b> — Keep more than 140 m ahead for 8 seconds, or survive 3 minutes.<br>WASD / arrows to drive · Shift for nitro · Space to handbrake.<br><b>COP SUPPORT</b> — V: backup · M: roadblock · N: spike block. You can also tap the on-screen buttons. Spikes can puncture friendly tires.</div>
         <p class="bs-mp-note">Both players need this version and an internet connection. Keep the host's tab open. Switching away pauses the chase. Rooms use PeerJS Cloud to connect; restrictive networks may require a TURN relay.</p>`;
       document.body.append(dialog);
       const hud = this.hud = document.createElement('section');
       hud.id = 'bs-mp-hud'; hud.hidden = true; hud.setAttribute('aria-label','Multiplayer chase');
-      hud.innerHTML = `<div class="bs-mp-hud-top"><strong id="bs-mp-side"></strong><button id="bs-mp-menu">ROOM / PAUSE</button></div><div id="bs-mp-hud-title"></div><div id="bs-mp-hud-detail"></div><div id="bs-mp-meter"><i></i></div>`;
+      hud.innerHTML = `<div class="bs-mp-hud-top"><strong id="bs-mp-side"></strong><button id="bs-mp-menu">ROOM / PAUSE</button></div><div id="bs-mp-hud-title"></div><div id="bs-mp-hud-detail"></div><div id="bs-mp-meter"><i></i></div>
+        <div id="bs-mp-support" hidden aria-label="Police support">${Object.entries(SUPPORT).map(([kind,spec])=>`<button id="bs-mp-support-${kind}" aria-keyshortcuts="${spec.key}" title="${spec.name} (${spec.key})"><span><kbd>${spec.key}</kbd> ${spec.name}</span><small>READY</small></button>`).join('')}</div>
+        <div id="bs-mp-support-notice" hidden role="status" aria-live="polite"></div>`;
       document.body.append(hud);
       this.el = id => document.getElementById('bs-mp-' + id);
       this.adapter.maps().forEach(map => { const o = document.createElement('option'); o.value=map.id; o.textContent=map.name; this.el('map').append(o); });
@@ -77,6 +91,7 @@
       this.el('swap').onclick = () => this.swap();
       this.el('leave').onclick = () => this.leave('You left the room.');
       this.el('menu').onclick = () => this.open();
+      for(const kind of Object.keys(SUPPORT))this.el('support-'+kind).onclick = event => {event.currentTarget.blur();this.support(kind);};
       this.el('close').onclick = () => this.closeMenu();
       this.el('copy-code').onclick = () => this.copy(this.code);
       this.el('copy-link').onclick = () => {
@@ -162,6 +177,7 @@
     },
     activate() {
       this.active=true;this.clock=idleClock();this.lastSnapshot=-1;this.serial=0;
+      this.resetSupport();
       document.body.classList.add('bs-mp-active');this.adapter.enter(this.role,this.map);this.refresh();
     },
     send(data, expendable=false) {
@@ -179,33 +195,38 @@
           this.connected=true;this.send({t:'welcome',v:VERSION,hostRole:this.hostRole,map:this.map});this.setStatus('Friend connected. Preparing their game…');
         } else if(this.connected && data.t==='ready') {this.guestReady=true;this.setStatus('Both players are ready. Start the chase when you are ready.');}
         else if(this.connected && data.t==='input' && data.round===this.round){this.remoteInput=cleanInput(data.keys);this.remoteInputAt=performance.now();}
+        else if(this.connected && data.t==='support' && data.round===this.round)this.deploySupport(data.kind,true);
         else if(this.connected && data.t==='pause')this.pause();
         else if(this.connected && data.t==='resume')this.resume();
       } else {
         if(data.t==='welcome' && !this.connected && data.v===VERSION && ROLES.includes(data.hostRole) && this.adapter.maps().some(m=>m.id===data.map)) {
           clearTimeout(this.timer);this.busy=false;this.connected=true;this.hostRole=data.hostRole;this.role=opposite(data.hostRole);this.map=data.map;this.activate();this.send({t:'ready'});this.setStatus('Connected. Waiting for the host to start.');
         } else if(this.connected && data.t==='lobby' && ROLES.includes(data.hostRole)) {
-          this.hostRole=data.hostRole;this.role=opposite(data.hostRole);this.clock=idleClock();this.adapter.enter(this.role,this.map);this.setStatus('Sides swapped. Waiting for the host to start.');this.show();
-        } else if(this.connected && data.t==='start' && Number.isSafeInteger(data.round) && data.round>this.round && validStates(data.states) && validClock(data.clock)) {
-          this.round=data.round;this.clock={...data.clock};this.lastSnapshot=-1;this.adapter.enter(this.role,this.map);this.adapter.apply(data.states,true,0);this.inputAt=0;this.inputSignature='';this.dialog.close();this.refresh();
-        } else if(this.connected && data.t==='state' && data.round===this.round && Number.isSafeInteger(data.serial) && data.serial>this.lastSnapshot && validStates(data.states) && validClock(data.clock)) {
+          this.hostRole=data.hostRole;this.role=opposite(data.hostRole);this.clock=idleClock();this.resetSupport();this.adapter.enter(this.role,this.map);this.setStatus('Sides swapped. Waiting for the host to start.');this.show();
+        } else if(this.connected && data.t==='start' && Number.isSafeInteger(data.round) && data.round>this.round && validStates(data.states) && validClock(data.clock) && validSupport(data.support)) {
+          this.round=data.round;this.clock={...data.clock};this.lastSnapshot=-1;this.resetSupport();this.adapter.enter(this.role,this.map);this.adapter.apply(data.states,true,0);this.adapter.applySupport(data.support,true);this.inputAt=0;this.inputSignature='';this.dialog.close();this.refresh();
+        } else if(this.connected && data.t==='state' && data.round===this.round && Number.isSafeInteger(data.serial) && data.serial>this.lastSnapshot && validStates(data.states) && validClock(data.clock) && validSupport(data.support)) {
           const before=this.clock.phase;this.lastSnapshot=data.serial;this.clock={...data.clock};
           this.adapter.apply(data.states,this.clock.phase!=='playing',Math.min(.12,this.ping/2000));
+          this.adapter.applySupport(data.support,this.clock.phase!=='playing');
           if(this.clock.phase==='finished' || this.clock.phase==='paused'){if(before!==this.clock.phase)this.show();}
           else if(before==='paused' || before==='finished')this.dialog.close();
           this.refresh();
+        } else if(this.connected && data.t==='support-result' && data.round===this.round && Object.hasOwn(SUPPORT,data.kind) && typeof data.ok==='boolean' && typeof data.message==='string' && data.message.length<180) {
+          if(this.pendingSupport?.kind===data.kind)this.pendingSupport=null;
+          this.announceSupport(data.message);
         }
       }
     },
     startRound() {
       if(!this.host||!this.guestReady||!this.conn?.open||!['lobby','finished'].includes(this.clock.phase))return;
       this.round++;this.clock={...idleClock(),phase:'countdown'};this.remoteInput={...STOP};this.remoteInputAt=0;
-      this.adapter.enter(this.role,this.map);this.send({t:'start',round:this.round,clock:this.clock,states:this.adapter.states()});
+      this.resetSupport();this.adapter.enter(this.role,this.map);this.send({t:'start',round:this.round,clock:this.clock,states:this.adapter.states(),support:this.adapter.supportState()});
       this.dialog.close();this.refresh();
     },
     swap() {
       if(!this.host||!['lobby','finished'].includes(this.clock.phase))return;
-      this.hostRole=opposite(this.hostRole);this.role=this.hostRole;this.clock=idleClock();this.adapter.enter(this.role,this.map);
+      this.hostRole=opposite(this.hostRole);this.role=this.hostRole;this.clock=idleClock();this.resetSupport();this.adapter.enter(this.role,this.map);
       this.send({t:'lobby',hostRole:this.hostRole});this.setStatus('Sides swapped. Ready for another chase.');
     },
     pause() {
@@ -223,7 +244,25 @@
       this.refresh();
     },
     finish(winner,reason) {this.clock.phase='finished';this.clock.winner=winner;this.clock.reason=reason;this.adapter.clearKeys();this.adapter.stop();this.snapshot();this.show();},
-    snapshot() {this.send({t:'state',round:this.round,serial:++this.serial,clock:this.clock,states:this.adapter.states()},true);},
+    resetSupport() {this.supportNotice='';this.supportNoticeUntil=0;this.pendingSupport=null;},
+    announceSupport(message) {this.supportNotice=message;this.supportNoticeUntil=performance.now()+4500;this.refresh();},
+    support(kind) {
+      if(!this.active || !this.connected || this.role!=='cop' || this.clock.phase!=='playing' || !Object.hasOwn(SUPPORT,kind))return;
+      if(this.host)this.deploySupport(kind,false);
+      else {
+        if(this.pendingSupport && performance.now()<this.pendingSupport.until)return;
+        this.pendingSupport={kind,until:performance.now()+2000};this.send({t:'support',round:this.round,kind});this.refresh();
+      }
+    },
+    deploySupport(kind,remote) {
+      // Only the host deploys support, at the actual cars' positions in its simulation.
+      if(!this.host || !this.active || !this.connected || this.clock.phase!=='playing' || !Object.hasOwn(SUPPORT,kind) || (remote?opposite(this.role):this.role)!=='cop')return;
+      const result=this.adapter.deploySupport(kind);
+      if(result.ok || !remote)this.announceSupport(result.message);
+      if(result.ok)this.snapshot();
+      if(result.ok || remote)this.send({t:'support-result',round:this.round,kind,ok:result.ok,message:result.message});
+    },
+    snapshot() {this.send({t:'state',round:this.round,serial:++this.serial,clock:this.clock,states:this.adapter.states(),support:this.adapter.supportState()},true);},
     tick(dt,keys) {
       if(!this.active)return;
       const now=performance.now();
@@ -256,6 +295,7 @@
     },
     leave(message='You left the room.',error=false) {
       const wasActive=this.active;this.shutdown();this.active=false;this.host=false;this.connected=false;this.guestReady=false;this.busy=false;this.code='';this.round=0;this.clock=idleClock();this.lastSnapshot=-1;this.ping=0;
+      this.resetSupport();
       document.body.classList.remove('bs-mp-active');if(wasActive)this.adapter.leave();this.setStatus(message,error);this.show();
     },
     refresh() {
@@ -273,6 +313,18 @@
       this.el('swap').hidden=!this.host||!['lobby','finished'].includes(clock.phase);
       this.el('resume').hidden=clock.phase!=='paused';
       this.el('side').textContent=`${this.role==='cop'?'COP':'RACER'} · ${this.code}`;
+      this.el('support').hidden=!room||this.role!=='cop';
+      const support=this.adapter.supportStatus(),pending=this.pendingSupport && performance.now()<this.pendingSupport.until;
+      for(const [kind,spec] of Object.entries(SUPPORT)) {
+        const button=this.el('support-'+kind),seconds=Math.ceil(support.cooldowns[kind]);
+        const full=kind==='backup'?support.backup>=2:support.blocks>=3;
+        const label=pending&&this.pendingSupport.kind===kind?'REQUESTED':seconds?`${seconds}s`:full?'LIMIT REACHED':'READY';
+        button.querySelector('small').textContent=label;
+        button.disabled=clock.phase!=='playing'||!this.connected||seconds>0||full||!!pending;
+        button.setAttribute('aria-label',`${spec.name}, ${spec.key}, ${label.toLowerCase()}`);
+      }
+      const notice=this.el('support-notice');notice.hidden=!room||performance.now()>=this.supportNoticeUntil;
+      notice.textContent=this.supportNotice;
       let title='Waiting for your friend',detail='Share the room code to connect.',progress=0;
       if(clock.phase==='lobby'&&this.connected){title=this.host?'Ready to chase':'Waiting for the host';detail='One cop vs one racer · '+mapName;}
       if(clock.phase==='countdown'){title=`${Math.max(1,Math.ceil(clock.countdown))} — Get ready`;detail=this.role==='cop'?'Stay close and stop the racer.':'Break away from the cop.';}
@@ -293,4 +345,3 @@
     }
   };
 })();
-

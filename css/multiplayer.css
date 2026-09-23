@@ -13,11 +13,16 @@
 .bs-mp-row{display:flex;gap:10px;align-items:center;margin-top:12px}.bs-mp-row>*{flex:1;min-width:0}.bs-mp-divider{margin:20px 0 12px;border-top:1px solid #2f4655;padding-top:16px;color:#839eae;font-size:10px;letter-spacing:.14em}
 #bs-mp-status{padding:11px 13px;border-radius:8px;background:#162a36;color:#c7e9f7;min-height:43px;box-sizing:border-box;margin:18px 0 0}#bs-mp-status[data-error=true]{background:#402631;color:#ffd0d5}
 .bs-mp-code{display:block;font:800 30px/1.4 ui-monospace,monospace;letter-spacing:.15em;color:#b6f670;margin:8px 0;user-select:all}.bs-mp-rules{border-left:2px solid #76b2ca;padding-left:14px;margin:19px 0;font-size:12px;color:#aac0cd}.bs-mp-rules b{color:#e5f3fa}
-#bs-mp-dialog .bs-mp-note{font-size:11px;line-height:1.6;color:#859eae}#bs-mp-dialog [hidden],#bs-mp-hud[hidden]{display:none!important}
+#bs-mp-dialog .bs-mp-note{font-size:11px;line-height:1.6;color:#859eae}#bs-mp-dialog [hidden],#bs-mp-hud[hidden],#bs-mp-hud [hidden]{display:none!important}
 #bs-mp-hud{position:fixed;z-index:45;top:72px;left:50%;transform:translateX(-50%);width:min(400px,calc(100% - 32px));padding:12px 16px;border:1px solid #58738288;border-radius:12px;background:#081724e8;color:#eff8ff;font:12px/1.4 system-ui;box-shadow:0 8px 25px #0003;pointer-events:auto}
 .bs-mp-hud-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.bs-mp-hud-top strong{font-size:12px;letter-spacing:.08em}.bs-mp-hud-top button{padding:6px 10px;border:1px solid #5b7180;border-radius:5px;background:#233a49;color:#fff;cursor:pointer;font-size:11px}
 #bs-mp-hud-title{font-size:19px;font-weight:750;margin-top:6px}#bs-mp-hud-detail{color:#a9c3d4;font-size:11px;margin-top:3px}#bs-mp-meter{height:4px;margin-top:9px;background:#344c5d;border-radius:5px;overflow:hidden}#bs-mp-meter i{display:block;height:100%;background:#acec60;transition:width .1s linear}
+#bs-mp-support{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:11px}
+#bs-mp-support button{min-height:50px;padding:7px 4px;border:1px solid #80bad5;border-radius:7px;background:#193e51;color:#e9faff;font:700 10px/1.35 system-ui;cursor:pointer;touch-action:manipulation}
+#bs-mp-support button:hover:enabled{background:#285c71}#bs-mp-support button:disabled{border-color:#415c6a;background:#162a36;color:#9ab3c0;cursor:default}
+#bs-mp-support kbd{display:inline-block;padding:1px 4px;margin-right:2px;border:1px solid #7eabbf88;border-radius:3px;font:800 11px system-ui;color:#d3edfd}
+#bs-mp-support small{display:block;margin-top:3px;color:#b5ee79;font-size:9px;letter-spacing:.06em}#bs-mp-support button:disabled small{color:#9ab3c0}
+#bs-mp-support-notice{margin-top:8px;color:#ffdc90;font-size:10px;line-height:1.4}
 body.bs-mp-active .mission-panel,body.bs-mp-active .support-panel,body.bs-mp-active .bust-panel,body.bs-mp-active .heat-status,body.bs-mp-active .backup-status,body.bs-mp-active .pursuit-status,body.bs-mp-active .takedown-count{display:none!important}
 body.bs-mp-active .equipment button[title="Reset the chase (R)"]{display:none!important}
-@media(max-width:650px){#bs-mp-dialog{padding:21px}#bs-mp-dialog h2{font-size:26px}#bs-mp-hud{top:64px;padding:9px 12px;width:min(360px,calc(100% - 28px))}#bs-mp-hud-title{font-size:16px}body.bs-mp-active .hud-left{top:188px}body.bs-mp-active .equipment{display:none}.bs-mp-code{font-size:27px}}
-
+@media(max-width:650px){#bs-mp-dialog{padding:21px}#bs-mp-dialog h2{font-size:26px}#bs-mp-hud{top:64px;padding:9px 12px;width:min(360px,calc(100% - 28px))}#bs-mp-hud-title{font-size:16px}body.bs-mp-active .hud-left{top:300px}body.bs-mp-active .equipment{display:none}.bs-mp-code{font-size:27px}}

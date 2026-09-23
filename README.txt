@@ -22,9 +22,18 @@ CONTROLS
 WASD or arrows: drive. Shift: nitro. Space: handbrake.
 B: look behind. C: camera. Esc or ROOM / PAUSE: pause the shared chase.
 Touch driving buttons remain available on phones.
+Cop support: V calls backup, M deploys a roadblock, N deploys a spike block.
+The cop can also click or tap the three support buttons in the multiplayer HUD.
+Support works whether the cop hosts or joins. Both players see the same units,
+barriers, spikes, and tire damage. Cooldowns: V 20 seconds, M 30 seconds, N 90 seconds.
+Up to 2 backup units and 3 blocks can be active. Roadblocks need the racer moving
+along a clear straight; if placement is unavailable, the cooldown is not spent.
+Spikes can puncture either player's tires and backup tires, so approach carefully.
+Support and cooldowns pause with the chase and reset for each rematch or side swap.
 Switching to another tab or window pauses both players. Keep the host's tab open.
 If either player leaves or loses the connection, return to the room menu to reconnect.
-AI backup, roadblocks, and solo reputation rewards are not part of the 1v1 mode.
+Multiplayer support does not award solo reputation. The human cop must still be
+within 9 metres to make the arrest. Both players should refresh after an update.
 
 PUT THE GAME ON GITHUB PAGES — NO BUILD OR NPM REQUIRED
 1. Unzip BlueShift-GitHub-Pages.zip on your computer.
